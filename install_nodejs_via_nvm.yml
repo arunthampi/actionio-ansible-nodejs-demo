@@ -1,0 +1,31 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    user: action
+    version: v0.8.12
+
+  tasks:
+    - name: Clone NVM
+      action: git repo=git://github.com/creationix/nvm.git dest=/home/${user}/.nvm
+
+    - name: Download Node.JS 64-bit
+      action: get_url url=http://nodejs.org/dist/${version}/node-${version}-linux-x64.tar.gz dest=/home/${user}/.nvm/node-${version}-linux-x64.tar.gz
+
+    - name: Unpack Node
+      action: command tar -xzf node-${version}-linux-x64.tar.gz creates=/home/${user}/.nvm/${version} chdir=/home/${user}/.nvm
+
+    - name: Rename Node.JS directory to ${version}
+      action: command mv node-${version}-linux-x64 ${version} creates=/home/${user}/.nvm/${version} chdir=/home/${user}/.nvm
+
+    - name: Check if nvm.sh is present in bash_profile
+      action: shell grep nvm.sh /home/${user}/.bash_profile
+      register: nvm_in_bash_profile
+      ignore_errors: True
+
+    - name: add nvm.sh in bash_profile
+      action: shell echo "source ~/.nvm/nvm.sh" >> /home/${user}/.bash_profile && chown ${user}:${user} /home/${user}/.bash_profile
+      only_if: "len('${nvm_in_bash_profile.stdout}') == 0"
+
+    - name: apply nvm.sh and set default version
+      action: shell /bin/bash -c "source /home/${user}/.nvm/nvm.sh && nvm use ${version} && nvm alias default ${version}"
